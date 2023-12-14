@@ -9,13 +9,13 @@
 1. 克隆代码库到本地：
 
    ```bash
-   git clone https://github.com/your-repo.git
+   git clone https://github.com/python_syntax_highlighter.git
    ```
 
 2. 进入项目目录：
 
    ```bash
-   cd your-repo
+   cd python_syntax_highlighter
    ```
 
 3. 在命令行中使用 `build` 命令
