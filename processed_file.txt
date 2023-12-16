@@ -1,25 +1,17 @@
-s = 1
-if s == 1:
+class TestOrigin(TestCase):
 
-    for i in 10:
+    def test_origin(self):
 
-        while True:
+        pass
+        if a == 0:
 
-            pass
+            class A:
+
+                def __init__(self):
+
+                    pass
 
 
 
-elif s == 2:
-
-    pass
-
 
-elif s == 3:
-
-    pass
-
-else:
-
-    pass
-
 
