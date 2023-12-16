@@ -18,7 +18,5 @@
    cd python_syntax_highlighter
    ```
 
-3. 在命令行中使用 `build` 命令
-4. `antlr4 Python.g4` + `grun` 来可视化分析`sample.py`中的 python 代码
-5. `antlr4py Python.g4` 生成 listener python 解析器
-6. `antlr4vpy Python.g4` 生成 visitor python 解析器
+3. 修改`origin.py`文件，该文件为测试文件
+4. 运行`generate.py`文件，来获得可视化的语法分析树
