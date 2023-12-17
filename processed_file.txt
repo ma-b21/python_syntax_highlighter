@@ -1,40 +1,69 @@
-class A(object.__annotations__, metaclass):
-
-    def __init__(self):
-
-        self.a = 1
-        self.b = 2
+import math
+import random
+from typing import List, Tuple, Union
+# 12345
 
-
-    def add(self):
-
-        return self.a + self.b
+class MyClass:
+ 1
+    def __init__(self, x: int, y: int):
+ 2
+        self.x = x
+        self.y = y
 
-
-    def sub(self):
-
-        return self.a - self.b
+ 1
+    def print_coordinates(self):
+ 2
+        print(f"Coordinates: ({self.x}, {self.y})")
 
-
-
-def func():
-
-    print('hello world')
 
-
-with open('origin.py', 'rb', encoding='UTF-8') as f:
-
-    for line in f:
-
-        print(line)
-        if line == 'print(i)\n':
-
-            break
-
-        elif line == '    print(i)\n':
-
-            continue
+ 1
+ 0
+def my_function():
+ 1
+    try:
+ 2
+        with open("file.txt", "r") as file:
+ 3
+            for line in file:
+ 4
+                if random.randint(0, 1) == 0:
+ 5
+                    raise ValueError("Random error occurred")
+ 4
+                print(line.strip())
+ 3
+ 2
+ 1
+    except FileNotFoundError:
+ 2
+        print("File not found")
+ 1
+    except ValueError as e:
+ 2
+        print(f"ValueError: {e}")
+ 1
+    finally:
+ 2
+        return None
 
-
-
-
+
+ 1
+ 0
+for i in range(10):
+ 1
+    if i % 2 == 0:
+ 2
+        print(f"{i} is even")
+ 1
+    else:
+ 2
+        print(f"{i} is odd")
+
+ 1
+ 0
+my_object = MyClass(3, 4)
+my_object.print_coordinates()
+my_function()
+a = my_function()
+my_lambda = lambda x: x**2
+

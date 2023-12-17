@@ -1,4 +1,6 @@
 import os
+
+
 def preprocess_python_code(file_path):
     INDENT_CHAR = '\b'
     DEDENT_CHAR = '\f'
@@ -16,11 +18,13 @@ def preprocess_python_code(file_path):
         if stripped_line:  # 非空行
             while stack and stack[-1] > indent_level:
                 stack.pop()
-                new_lines.append(DEDENT_CHAR + '\n')  # 缩进退格后增加一行DEDENT
+                # 缩进退格后增加一行DEDENT
+                new_lines.append(DEDENT_CHAR + " " + str(stack[-1]) + '\n')
 
             if not stack or indent_level > stack[-1]:
                 stack.append(indent_level)
-                new_lines.append(INDENT_CHAR + '\n')  # 增加缩进级别时在上方增加一行INDENT
+                # 增加缩进级别时在上方增加一行INDENT
+                new_lines.append(INDENT_CHAR + " " + str(stack[-1]) + '\n')
                 new_lines.append(line)
             else:
                 new_lines.append(line)
@@ -29,17 +33,18 @@ def preprocess_python_code(file_path):
     new_lines.append('\n')  # 文件结束时增加一个空行
     while stack and stack[-1] > 0:
         stack.pop()
-        new_lines.append(DEDENT_CHAR + '\n')  # 文件结束时增加DEDENT行
+        new_lines.append(DEDENT_CHAR + " " +
+                         str(stack[-1]) + '\n')  # 文件结束时增加DEDENT行
 
     return ''.join(new_lines)
 
-# 使用示例
-file_path = 'origin.py'
-processed_code = preprocess_python_code(file_path)
 
-with open('processed_file.txt', 'w') as file:
-    file.write(processed_code)
+def pre_process():
+    os.system('antlr4py Python.g4')
+    file_path = 'origin.py'
+    processed_code = preprocess_python_code(file_path)
 
-# 执行命令: antlr4 Python.g4
-os.system('antlr4 Python.g4')
-os.system('grun')
+    with open('processed_file.txt', 'w') as file:
+        file.write(processed_code)
+
+pre_process()

@@ -1,45 +1,28 @@
 grammar Python;
 
-// Lexer rules
-// (Note: Token definitions would need to be added here based on the PEG grammar's tokens)
-NEWLINE : '\r'? '\n' ;
-INDENT : '\b' ('\r'? '\n')? ;
-DEDENT : '\f' ('\r'? '\n')? ;
-PASS : 'pass' ;
-BREAK : 'break' ;
-CONTINUE : 'continue' ;
-NAME : [a-zA-Z_] [a-zA-Z_0-9]* ;
-NUMBER : [0-9]+ ('.' [0-9]*)? ;
-TYPE_COMMENT : [a-zA-Z_] [a-zA-Z_0-9]* ;
-STRING : '"' ~["\r\n]* '"' | '\'' ~['\r\n]* '\'' ;
-ASYNC : 'async' ;
-AWAIT : 'await' ;
-FSTRING_START : 'f' ;
-FSTRING_MIDDLE : '{' ~[{}\r\n]* '}' ;
-FSTRING_END : '}' ;
-COMMENT : '#' ~[\r\n]* ;
+// 本语法根据 https://docs.python.org/3/reference/grammar.html 中部分改编
 
 // Parser rules
-program : statements EOF ;
-func_type : '(' type_expressions? ')' '->' expression NEWLINE* EOF ;
+program : statement* EOF ;
 
-statements : statement* ;
-statement :( compound_stmts | simple_stmts | comment ) NEWLINE*;
-
-newLines : NEWLINE+ ;
+statement :( compound_stmts | simple_stmts (comment)? | comment ) NEWLINES;
 
 simple_stmts : assignment
              | star_expressions
              | return_stmt
              | import_stmt
              | raise_stmt
-             | PASS
+             | pass_stmt
              | del_stmt
              | yield_stmt
              | assert_stmt
-             | BREAK
-             | CONTINUE
+             | break_stmt
+             | continue_stmt
              | global_stmt;
+
+pass_stmt : PASS;
+break_stmt : BREAK;
+continue_stmt : CONTINUE;
 
 compound_stmts : function_def
                | if_stmt
@@ -47,34 +30,19 @@ compound_stmts : function_def
                | for_stmt
                | try_stmt
                | with_stmt
-               | while_stmt
-               | match_stmt;
+               | while_stmt;
 
-assignment : single_target augassign (yield_expr | star_expressions)
-           | single_target '=' (yield_expr | star_expressions) NEWLINE*;
+assignment : single_target augassign (yield_expr | star_expressions);
 
+augassign : AUGASSIGN | ASSIGN;
 
-augassign : '+='
-          | '-='
-          | '*='
-          | '@='
-          | '/='
-          | '%='
-          | '&='
-          | '|='
-          | '^='
-          | '<<='
-          | '>>='
-          | '**='
-          | '//=';
+return_stmt: RETURN star_expressions?;
 
-return_stmt: 'return' star_expressions?;
-
-raise_stmt : 'raise' expression ('from' expression)?
-           | 'raise'
+raise_stmt : RAISE expression (FROM expression)?
+           | RAISE
            ;
 
-global_stmt: 'global' (NAME ',')* NAME;
+global_stmt: GLOBAL (NAME COMMA)* NAME;
 
 comment : COMMENT;
 
@@ -82,249 +50,111 @@ del_stmt: 'del' del_targets;
 
 yield_stmt: yield_expr;
 
-assert_stmt: 'assert' expression (',' expression)?;
+assert_stmt: 'assert' expression (COMMA expression)?;
 
 import_stmt : import_name
             | import_from
             ;
 
-import_name: 'import' dotted_as_names;
+import_name: IMPORT dotted_as_names;
 
-import_from : 'from' ('.' | '...')* dotted_name 'import' import_from_targets
-            | 'from' ('.' | '...')+ 'import' import_from_targets
+import_from : FROM ('.' | '...')* dotted_name IMPORT import_from_targets
+            | FROM ('.' | '...')+ IMPORT import_from_targets
             ;
 
-import_from_targets : '(' import_from_as_names (',')? ')'
+import_from_targets : '(' import_from_as_names (COMMA)? ')'
                     | import_from_as_names
                     | '*'
                     ;
 
-import_from_as_names: import_from_as_name (',' import_from_as_name)*;
+import_from_as_names: import_from_as_name (COMMA import_from_as_name)*;
 
-import_from_as_name: NAME ('as' NAME)?;
+import_from_as_name: NAME (AS NAME)?;
 
-dotted_as_names: dotted_as_name (',' dotted_as_name)*;
+dotted_as_names: dotted_as_name (COMMA dotted_as_name)*;
 
-dotted_as_name: dotted_name ('as' NAME)?;
+dotted_as_name: dotted_name (AS NAME)?;
 
 dotted_name : dotted_name '.' NAME
             | NAME
             ;
 
-// ANTLR grammar conversion from PEG (Continued)
-
-block : NEWLINE INDENT statements DEDENT 
+block : NEWLINES indent statement+ dedent 
       | simple_stmts;
 
-decorators: ('@' named_expression NEWLINE)+;
+indent : INDENT (NEWLINES)?;
 
-class_def : (decorators)? class_def_raw;
+dedent : DEDENT (NEWLINES)?;
 
-class_def_raw : 'class' NAME (type_params)? ('(' (arguments)? ')')? ':' block;
+decorators: ('@' named_expression NEWLINES)+;
 
-function_def : (decorators)? function_def_raw;
+class_def : (decorators)? CLASS NAME ('(' (arguments)? ')')? COLON block;
 
-function_def_raw : 'def' NAME (type_params)? '(' (params)? ')' ('->' expression)? ':' (func_type_comment)? block
-                 | ASYNC 'def' NAME (type_params)? '(' (params)? ')' ('->' expression)? ':' (func_type_comment)? block;
+function_def : (decorators)? (ASYNC)? DEF NAME '(' (parameters)? ')' ('->' expression)? COLON block;
 
-params : (parameters)?;
-
-parameters : slash_no_default (param_no_default)* (param_with_default)* (star_etc)?
-           | slash_with_default (param_with_default)* (star_etc)?
-           | (param_no_default)+ (param_with_default)* (star_etc)?
+parameters : (param_no_default)+ (param_with_default)* (star_etc)?
            | (param_with_default)+ (star_etc)?
            | star_etc;
 
-slash_no_default : (param_no_default)+ '/'
-                 | (param_no_default)+ '/'?;
-
-slash_with_default : (param_no_default)* (param_with_default)+ '/'
-                   | (param_no_default)* (param_with_default)+ '/'?;
-
 star_etc : '*' param_no_default (param_maybe_default)* (kwds)?
-         | '*' ',' (param_maybe_default)+ (kwds)?
+         | '*' COMMA (param_maybe_default)+ (kwds)?
          | kwds;
 
 kwds : '**' param_no_default;
 
-param_no_default : param ','
+param_no_default : param COMMA
                  | param;
 
-param_with_default : param default ','
+param_with_default : param default COMMA
                    | param default;
 
-param_maybe_default : param (default)? ','
+param_maybe_default : param (default)? COMMA
                     | param (default)?;
 
 param : NAME (annotation)?;
 
-annotation : ':' expression;
+annotation : COLON expression;
 
-default : '=' expression;
+default : ASSIGN expression;
 
-if_stmt : 'if' named_expression ':' block (elif_stmt)?
-        | 'if' named_expression ':' block (else_block)?;
+if_stmt : IF named_expression COLON block (elif_stmt)?
+        | IF named_expression COLON block (else_block)?;
 
-elif_stmt : 'elif' named_expression ':' block (elif_stmt)?
-          | 'elif' named_expression ':' block (else_block)?;
+elif_stmt : ELIF named_expression COLON block (elif_stmt)?
+          | ELIF named_expression COLON block (else_block)?;
 
-else_block: 'else' ':' block;
+else_block: ELSE COLON block;
 
-while_stmt: 'while' named_expression ':' block (else_block)?;
+while_stmt: WHILE named_expression COLON block (else_block)?;
 
-for_stmt : 'for' star_targets 'in' star_expressions ':' (TYPE_COMMENT)? block (else_block)?
-         | ASYNC 'for' star_targets 'in' star_expressions ':' (TYPE_COMMENT)? block (else_block)?;
+for_stmt : FOR star_targets IN star_expressions COLON block (else_block)?
+         | ASYNC FOR star_targets IN star_expressions COLON block (else_block)?;
 
-with_stmt : 'with' '(' with_item (',' with_item)* ','? ')' ':' block
-          | 'with' with_item (',' with_item)* ':' (TYPE_COMMENT)? block
-          | ASYNC 'with' '(' with_item (',' with_item)* ','? ')' ':' block
-          | ASYNC 'with' with_item (',' with_item)+ ':' (TYPE_COMMENT)? block;
+with_stmt : WITH '(' with_item (COMMA with_item)* COMMA? ')' COLON block
+          | WITH with_item (COMMA with_item)* COLON block
+          | ASYNC WITH '(' with_item (COMMA with_item)* COMMA? ')' COLON block
+          | ASYNC WITH with_item (COMMA with_item)+ COLON block;
 
-with_item : expression 'as' star_target
+with_item : expression AS star_target
           | expression;
 
-try_stmt : 'try' ':' block (finally_block)
-         | 'try' ':' block (except_block)+ (else_block)? (finally_block)?
-         | 'try' ':' block (except_star_block)+ (else_block)? (finally_block)?;
+try_stmt : 'try' COLON block (finally_block)
+         | 'try' COLON block (except_block)+ (else_block)? (finally_block)?
+         | 'try' COLON block (except_star_block)+ (else_block)? (finally_block)?;
 
-except_block : 'except' expression ('as' NAME)? ':' block
-             | 'except' ':' block;
+except_block : EXCEPT expression (AS NAME)? COLON block
+             | EXCEPT COLON block;
 
-except_star_block: 'except' '*' expression ('as' NAME)? ':' block;
+except_star_block: EXCEPT '*' expression (AS NAME)? COLON block;
 
-finally_block: 'finally' ':' block;
+finally_block: FINALLY COLON block;
 
-// ANTLR grammar conversion from PEG (Continued)
-
-match_stmt : 'match' subject_expr ':' NEWLINE INDENT case_block+ DEDENT;
-
-subject_expr : star_named_expression ',' star_named_expressions?
-             | named_expression;
-
-case_block : 'case' patterns guard? ':' block;
-
-guard: 'if' named_expression;
-
-patterns : open_sequence_pattern
-    | pattern;
-
-pattern : as_pattern
-    | or_pattern;
-
-as_pattern : or_pattern 'as' pattern_capture_target;
-
-or_pattern : closed_pattern ('|' closed_pattern)+;
-
-closed_pattern : literal_pattern
-               | capture_pattern
-               | wildcard_pattern
-               | value_pattern
-               | group_pattern
-               | sequence_pattern
-               | mapping_pattern
-               | class_pattern;
-
-literal_pattern : signed_number
-                | complex_number
-                | strings
-                | 'None'
-                | 'True'
-                | 'False';
-
-complex_number : signed_real_number '+' imaginary_number
-               | signed_real_number '-' imaginary_number;
-
-signed_number : NUMBER
-              | '-' NUMBER;
-
-signed_real_number : real_number
-                   | '-' real_number;
-
-real_number: NUMBER;
-imaginary_number: NUMBER;
-
-capture_pattern : pattern_capture_target;
-
-pattern_capture_target : NAME;
-
-wildcard_pattern: '_';
-
-value_pattern : attr;
-
-attr : name_or_attr '.' NAME;
-
-name_or_attr : NAME;
-
-group_pattern : '(' pattern ')';
-
-sequence_pattern : '[' maybe_sequence_pattern? ']'
-                 | '(' open_sequence_pattern? ')';
-
-open_sequence_pattern : maybe_star_pattern ',' maybe_sequence_pattern?;
-
-maybe_sequence_pattern : maybe_star_pattern (',' maybe_star_pattern)*;
-
-maybe_star_pattern : star_pattern
-                   | pattern;
-
-star_pattern : '*' pattern_capture_target
-             | '*' wildcard_pattern;
-
-mapping_pattern : '{' '}'
-                | '{' double_star_pattern ','? '}'
-                | '{' items_pattern ',' double_star_pattern ','? '}'
-                | '{' items_pattern ','? '}';
-
-items_pattern : key_value_pattern (',' key_value_pattern)*;
-
-key_value_pattern : (literal_expr | attr) ':' pattern;
-
-literal_expr : literal_pattern
-             | NAME;
-
-double_star_pattern : '**' pattern_capture_target;
-
-class_pattern : name_or_attr '(' ')'
-              | name_or_attr '(' positional_patterns ','? ')'
-              | name_or_attr '(' keyword_patterns ','? ')'
-              | name_or_attr '(' positional_patterns ',' keyword_patterns ','? ')';
-
-// ANTLR grammar conversion from PEG (Continued)
-
-positional_patterns: pattern (',' pattern)*;
-
-keyword_patterns: keyword_pattern (',' keyword_pattern)*;
-
-keyword_pattern: NAME '=' pattern;
-
-type_params: '[' type_param_seq ']';
-
-type_param_seq: type_param (',' type_param)*;
-
-type_param : NAME ':' expression
-           | NAME
-           | '*' NAME ':' expression
-           | '*' NAME
-           | '**' NAME ':' expression
-           | '**' NAME
-           ;
-
-expressions : expression (',' expression)*
-            | expression ','
-            | expression
-            ;
-
-expression : disjunction 'if' disjunction 'else' expression
-           | disjunction
-           | lambdef
-           ;
-
-yield_expr : 'yield' 'from' expression
+yield_expr : 'yield' FROM expression
            | 'yield' star_expressions?
            ;
 
-star_expressions : star_expression (',' star_expression)*
-                 | star_expression ','
+star_expressions : star_expression (COMMA star_expression)*
+                 | star_expression COMMA
                  | star_expression
                  ;
 
@@ -332,47 +162,52 @@ star_expression : '*' bitwise_or
                 | expression
                 ;
 
-star_named_expressions: star_named_expression (',' star_named_expression)*;
+star_named_expressions: star_named_expression (COMMA star_named_expression)*;
 
 star_named_expression : '*' bitwise_or
                       | named_expression
                       ;
 
-assignment_expression : NAME ':=' expression ;
+assignment_expression : NAME EXPLAIN expression ;
 
 named_expression : assignment_expression
                  | expression
               ;
 
-disjunction : conjunction ('or' conjunction)*
-            | conjunction
+
+expressions : expression (COMMA expression)*
+            | expression COMMA
+            | expression
             ;
 
-conjunction : inversion ('and' inversion)*
-            | inversion
-            ;
-
-inversion : 'not' inversion
-          | comparison
-          ;
-
-comparison : bitwise_or compare_op_bitwise_or_pair*
+expression : disjunction IF disjunction ELSE expression
+           | atom
+           | primary
+           | await_primary
+           | power
+           | factor
+           | term
+           | sum
+           | shift_expr
+           | bitwise_and
+           | bitwise_xor
            | bitwise_or
+           | comparison
+           | inversion
+           | conjunction
+           | disjunction
+           | lambdef
            ;
 
-compare_op_bitwise_or_pair : comparison_operator bitwise_or ;
+disjunction : conjunction ('or' conjunction)* ;
 
-comparison_operator : '=='
-                    | '!='
-                    | '<='
-                    | '<'
-                    | '>='
-                    | '>'
-                    | 'not' 'in'
-                    | 'in'
-                    | 'is' 'not'
-                    | 'is'
-                    ;
+conjunction : inversion ('and' inversion)* ;
+
+inversion : NOT inversion | comparison ;
+
+comparison : bitwise_or compare_op_bitwise_or_pair* ;
+
+compare_op_bitwise_or_pair : COMPARISON_OPERATOR bitwise_or ;
 
 bitwise_or : bitwise_or '|' bitwise_xor
            | bitwise_xor
@@ -417,12 +252,10 @@ primary : primary '.' NAME
         | atom
         ;
 
-// ANTLR grammar conversion from PEG (Continued)
-
-slices : slice (',' slice)* ','?
+slices : slice (COMMA slice)* COMMA?
        | slice;
 
-slice : (expression)? ':' (expression)? (':' (expression)?)?
+slice : (expression)? COLON (expression)? (COLON (expression)?)?
       | named_expression;
 
 atom : NAME
@@ -438,51 +271,39 @@ atom : NAME
 
 group: '(' (yield_expr | named_expression) ')';
 
-lambdef: 'lambda' (lambda_params)? ':' expression;
+lambdef: 'lambda' (lambda_params)? COLON expression;
 
 lambda_params: lambda_parameters;
 
-lambda_parameters : lambda_slash_no_default (lambda_param_no_default)* (lambda_param_with_default)* (lambda_star_etc)?
-                  | lambda_slash_with_default (lambda_param_with_default)* (lambda_star_etc)?
-                  | (lambda_param_no_default)+ (lambda_param_with_default)* (lambda_star_etc)?
+lambda_parameters : (lambda_param_no_default)+ (lambda_param_with_default)* (lambda_star_etc)?
                   | (lambda_param_with_default)+ (lambda_star_etc)?
                   | lambda_star_etc;
 
-lambda_slash_no_default : (lambda_param_no_default)+ '/' ','
-                        | (lambda_param_no_default)+ '/'?;
-
-lambda_slash_with_default : (lambda_param_no_default)* (lambda_param_with_default)+ '/' ','
-                          | (lambda_param_no_default)* (lambda_param_with_default)+ '/'?;
-
 lambda_star_etc : '*' lambda_param_no_default (lambda_param_maybe_default)* (lambda_kwds)?
-                | '*' ',' (lambda_param_maybe_default)+ (lambda_kwds)?
+                | '*' COMMA (lambda_param_maybe_default)+ (lambda_kwds)?
                 | lambda_kwds;
 
 lambda_kwds: '**' lambda_param_no_default;
 
-lambda_param_no_default : lambda_param ','
+lambda_param_no_default : lambda_param COMMA
                         | lambda_param;
 
-lambda_param_with_default : lambda_param default ','
+lambda_param_with_default : lambda_param default COMMA
                           | lambda_param default;
 
-lambda_param_maybe_default  : lambda_param (default)? ','
+lambda_param_maybe_default  : lambda_param (default)? COMMA
                             | lambda_param (default)?;
 
 lambda_param: NAME;
 
-// ANTLR grammar conversion from PEG (Continued)
-
 fstring_middle : fstring_replacement_field
-               | FSTRING_MIDDLE;
+               | ~('{' | '}' | '\r' | '\n' | '\b' | '\f')+;
 
-fstring_replacement_field : '{' (yield_expr | star_expressions) (fstring_conversion)? (fstring_full_format_spec)? '}';
+fstring_replacement_field : '{' (yield_expr | star_expressions)  (fstring_full_format_spec)? '}';
 
-fstring_conversion : '!' NAME;
+fstring_full_format_spec : COLON fstring_format_spec*;
 
-fstring_full_format_spec : ':' fstring_format_spec*;
-
-fstring_format_spec : FSTRING_MIDDLE
+fstring_format_spec : ~('{' | '}' | '\r' | '\n' | '\b' | '\f')+
                     | fstring_replacement_field;
 
 fstring : FSTRING_START fstring_middle* FSTRING_END;
@@ -490,57 +311,57 @@ fstring : FSTRING_START fstring_middle* FSTRING_END;
 string: STRING;
 strings: (fstring | string)+;
 
+dict : '{' (double_starred_kvpairs)? '}';
+
 list: '[' (star_named_expressions)? ']';
 
-tuple: '(' (star_named_expression (',' star_named_expressions)?)? ')';
+tuple: '(' (star_named_expression (COMMA star_named_expressions)?)? ')';
+
 
 set: '{' star_named_expressions '}';
 
-dict : '{' (double_starred_kvpairs)? '}';
 
-double_starred_kvpairs: double_starred_kvpair (',' double_starred_kvpair)* (',')?;
+double_starred_kvpairs: double_starred_kvpair (COMMA double_starred_kvpair)* (COMMA)?;
 
 double_starred_kvpair : '**' bitwise_or
                       | kvpair;
 
-kvpair: expression ':' expression;
+kvpair: expression COLON expression;
 
 for_if_clauses: for_if_clause+;
 
-for_if_clause : ASYNC 'for' star_targets 'in' disjunction ('if' disjunction)*
-              | 'for' star_targets 'in' disjunction ('if' disjunction)*;
+for_if_clause : ASYNC FOR star_targets IN disjunction (IF disjunction)*
+              | FOR star_targets IN disjunction (IF disjunction)*;
 
 listcomp: '[' named_expression for_if_clauses ']';
 setcomp: '{' named_expression for_if_clauses '}';
 genexp: '(' (assignment_expression | expression) for_if_clauses ')';
 dictcomp: '{' kvpair for_if_clauses '}';
 
-arguments :  (args (',' args)* (',' kwargs)? | kwargs) (',')?;
+arguments :  (args (COMMA args)* (COMMA kwargs)? | kwargs) (COMMA)?;
 
 args : (starred_expression | (assignment_expression | expression));
 
-kwargs : kwarg_or_starred (',' kwarg_or_double_starred)*
+kwargs : kwarg_or_starred (COMMA kwarg_or_double_starred)*
        | kwarg_or_starred+
        | kwarg_or_double_starred+;
 
 starred_expression: '*' expression;
 
-kwarg_or_starred : NAME '=' expression
+kwarg_or_starred : NAME ASSIGN expression
                  | starred_expression;
 
-kwarg_or_double_starred : NAME '=' expression
+kwarg_or_double_starred : NAME ASSIGN expression
                         | '**' expression;
 
-// ANTLR grammar conversion from PEG (Continued)
-
 star_targets : star_target
-             | star_target (',' star_target)* ','?
+             | star_target (COMMA star_target)* COMMA?
              ;
 
-star_targets_list_seq: star_target (',' star_target)* ','?;
+star_targets_list_seq: star_target (COMMA star_target)* COMMA?;
 
-star_targets_tuple_seq : star_target (',' star_target)+ ','?
-                       | star_target ','
+star_targets_tuple_seq : star_target (COMMA star_target)+ COMMA?
+                       | star_target COMMA
                        ;
 
 star_target : '*' (star_target)
@@ -574,9 +395,7 @@ t_primary : t_primary '.' NAME
           | atom
           ;
 
-t_lookahead: '(' | '[' | '.';
-
-del_targets: del_target (',' del_target)* ','?;
+del_targets: del_target (COMMA del_target)* COMMA?;
 
 del_target : t_primary '.' NAME
            | t_primary '[' slices ']'
@@ -589,15 +408,106 @@ del_t_atom : NAME
     | '[' del_targets? ']'
     ;
 
-type_expressions : expression (',' expression)* ',' '*' expression ',' '**' expression
-                 | expression (',' expression)* ',' '*' expression
-                 | expression (',' expression)* ',' '**' expression
-                 | '*' expression ',' '**' expression
-                 | '*' expression
-                 | '**' expression
-                 | expression (',' expression)*
-                 ;
+// Lexer rules
+ENTER : '\r' ;
+LINEBREAK : '\n' ;
+NEWLINES : (ENTER? LINEBREAK)+ ;
+INDENT : '\b' ' ' NUMBER ;
+DEDENT : '\f' ' ' NUMBER ;
+STRING : '"' ~["\r\n]* '"' | '\'' ~['\r\n]* '\'' ;
+AUGASSIGN : '+='
+          | '-='
+          | '*='
+          | '@='
+          | '/='
+          | '%='
+          | '&='
+          | '|='
+          | '^='
+          | '<<='
+          | '>>='
+          | '**='
+          | '//=';
+ASSIGN : '=';
 
-func_type_comment : NEWLINE TYPE_COMMENT
-                  | TYPE_COMMENT
-                  ;
+IF : 'if' ;
+ELSE : 'else' ;
+ELIF : 'elif' ;
+FOR : 'for' ;
+IN : 'in' ;
+NOT : 'not' ;
+IS : 'is' ;
+WHILE : 'while' ;
+DEF : 'def' ;
+RETURN : 'return' ;
+CLASS : 'class' ;
+WITH : 'with' ;
+AS : 'as' ;
+EXCEPT : 'except' ;
+FINALLY : 'finally' ;
+FROM : 'from' ;
+IMPORT : 'import' ;
+PASS : 'pass' ;
+BREAK : 'break' ;
+CONTINUE : 'continue' ;
+GLOBAL : 'global' ;
+RAISE : 'raise' ;
+DEL : 'del' ;
+ASSERT : 'assert' ;
+ASYNC : 'async' ;
+AWAIT : 'await' ;
+TRY : 'try' ;
+YIELD : 'yield' ;
+TRUE : 'True' ;
+FALSE : 'False' ;
+NONE : 'None' ;
+LAMBDA : 'lambda' ;
+
+COMPARISON_OPERATOR : '=='
+                    | '!='
+                    | '<='
+                    | '<'
+                    | '>='
+                    | '>'
+                    | NOT IN
+                    | IN
+                    | IS NOT
+                    | IS
+                    ;
+COMMA : ',' ;
+COLON : ':' ;
+DOT : '.' ;
+ELLIPSIS : '...' ;
+AT : '@' ;
+LBAR : '(' ;
+RBAR : ')' ;
+LSQUARE : '[' ;
+RSQUARE : ']' ;
+LBRACE : '{' ;
+RBRACE : '}' ;
+OPERATOR : '*'
+         | '->'
+         | '**'
+         | 'or'
+         | 'and'
+         | '|'
+         | '^'
+         | '&'
+         | '<<'
+         | '>>'
+         | '+'
+         | '-'
+         | '/'
+         | '//'
+         | '%'
+         | '~'
+         ;
+         
+EXPLAIN : ':=';
+
+NAME : [a-zA-Z_] [a-zA-Z_0-9]* ;
+NUMBER : [0-9]+ ('.' [0-9]*)? ;
+COMMENT : '#' ~[\r\n]* -> channel(HIDDEN);
+WS: [ \t]+ -> skip ;
+FSTRING_START : 'f\'' | 'F\'' | 'f"' | 'F"' ;
+FSTRING_END : '\'' | '"' ;
