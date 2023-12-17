@@ -44,7 +44,7 @@ def pre_process():
     file_path = 'origin.py'
     processed_code = preprocess_python_code(file_path)
 
-    with open('processed_file.txt', 'w') as file:
+    with open('processed_file.txt', 'w', encoding='utf-8') as file:
         file.write(processed_code)
 
 pre_process()

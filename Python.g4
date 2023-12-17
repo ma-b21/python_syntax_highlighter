@@ -296,17 +296,15 @@ lambda_param_maybe_default  : lambda_param (default)? COMMA
 
 lambda_param: NAME;
 
-fstring_middle : fstring_replacement_field
-               | ~('{' | '}' | '\r' | '\n' | '\b' | '\f')+;
 
-fstring_replacement_field : '{' (yield_expr | star_expressions)  (fstring_full_format_spec)? '}';
+fstring_replacement_field : '{' (yield_expr | star_expressions) '}';
 
-fstring_full_format_spec : COLON fstring_format_spec*;
+fstring_content_single : (~('{' | '}' | '\r' | '\n' | '\f' | '\b' | '\''))+;
 
-fstring_format_spec : ~('{' | '}' | '\r' | '\n' | '\b' | '\f')+
-                    | fstring_replacement_field;
+fstring_content_double : (~('{' | '}' | '\r' | '\n' | '\f' | '\b' | '"'))+;
 
-fstring : FSTRING_START fstring_middle* FSTRING_END;
+fstring : (FSTRING_START_SINGLE (fstring_content_single | fstring_replacement_field)* FSTRING_END_SINGLE)
+        | (FSTRING_START_DOUBLE (fstring_content_double | fstring_replacement_field)* FSTRING_END_DOUBLE);
 
 string: STRING;
 strings: (fstring | string)+;
@@ -414,6 +412,10 @@ LINEBREAK : '\n' ;
 NEWLINES : (ENTER? LINEBREAK)+ ;
 INDENT : '\b' ' ' NUMBER ;
 DEDENT : '\f' ' ' NUMBER ;
+FSTRING_START_SINGLE : 'f\'' | 'F\'';
+FSTRING_START_DOUBLE : 'f"' | 'F"';
+FSTRING_END_SINGLE : '\'';
+FSTRING_END_DOUBLE : '"';
 STRING : '"' ~["\r\n]* '"' | '\'' ~['\r\n]* '\'' ;
 AUGASSIGN : '+='
           | '-='
@@ -507,7 +509,5 @@ EXPLAIN : ':=';
 
 NAME : [a-zA-Z_] [a-zA-Z_0-9]* ;
 NUMBER : [0-9]+ ('.' [0-9]*)? ;
-COMMENT : '#' ~[\r\n]* -> channel(HIDDEN);
+COMMENT : '#' ~[\r\n]*;
 WS: [ \t]+ -> skip ;
-FSTRING_START : 'f\'' | 'F\'' | 'f"' | 'F"' ;
-FSTRING_END : '\'' | '"' ;
