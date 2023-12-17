@@ -1,17 +1,40 @@
-class TestOrigin(TestCase):
+class A(object.__annotations__, metaclass):
 
-    def test_origin(self):
+    def __init__(self):
 
-        pass
-        if a == 0:
+        self.a = 1
+        self.b = 2
+
+
+    def add(self):
 
-            class A:
+        return self.a + self.b
+
+
+    def sub(self):
 
-                def __init__(self):
-
-                    pass
+        return self.a - self.b
+
 
 
+def func():
+
+    print('hello world')
+
+
+with open('origin.py', 'rb', encoding='UTF-8') as f:
+
+    for line in f:
+
+        print(line)
+        if line == 'print(i)\n':
+
+            break
+
+        elif line == '    print(i)\n':
+
+            continue
+
 
 
 

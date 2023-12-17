@@ -11,7 +11,7 @@ def preprocess_python_code(file_path):
 
     for line in lines:
         stripped_line = line.lstrip()
-        indent_level = len(line) - len(stripped_line)
+        indent_level = (len(line) - len(stripped_line)) // 4  # 计算缩进级别
 
         if stripped_line:  # 非空行
             while stack and stack[-1] > indent_level:
