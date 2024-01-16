@@ -1,12 +1,17 @@
 import os
+import re
 
 
-def preprocess_python_code(file_path):
+def preprocess_python_code(file_path:str):
     INDENT_CHAR = '\b'
     DEDENT_CHAR = '\f'
 
-    with open(file_path, 'r', encoding='utf-8') as file:
-        lines = file.readlines()
+    # with open(file_path, 'r', encoding='utf-8') as file:
+    #     lines = file.readlines()
+
+    lines = file_path.split('\n')
+    for i in range(len(lines) - 1):
+        lines[i] = lines[i] + '\n'
 
     new_lines = []
     stack = [0]  # 缩进栈，栈顶元素是当前缩进级别
@@ -39,12 +44,8 @@ def preprocess_python_code(file_path):
     return ''.join(new_lines)
 
 
-def pre_process():
-    os.system('antlr4py Python.g4')
-    file_path = 'origin.py'
-    processed_code = preprocess_python_code(file_path)
-
-    with open('processed_file.txt', 'w', encoding='utf-8') as file:
-        file.write(processed_code)
-
-pre_process()
+def pre_process(html_code):
+    processed_code = preprocess_python_code(html_code)
+    return processed_code
+    # with open('processed_file.txt', 'w', encoding='utf-8') as file:
+    #     file.write(processed_code)

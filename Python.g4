@@ -3,12 +3,12 @@ grammar Python;
 // 本语法根据 https://docs.python.org/3/reference/grammar.html 中部分改编
 
 // Parser rules
-program : statement* EOF ;
+program : NEWLINES? statement* EOF ;
 
 statement :( compound_stmts | simple_stmts (comment)? | comment ) NEWLINES;
 
 simple_stmts : assignment
-             | star_expressions
+             | star_expression
              | return_stmt
              | import_stmt
              | raise_stmt
@@ -32,11 +32,9 @@ compound_stmts : function_def
                | with_stmt
                | while_stmt;
 
-assignment : single_target augassign (yield_expr | star_expressions);
+assignment : single_target (AUGASSIGN | ASSIGN) (yield_expr | star_expression);
 
-augassign : AUGASSIGN | ASSIGN;
-
-return_stmt: RETURN star_expressions?;
+return_stmt: RETURN star_expression?;
 
 raise_stmt : RAISE expression (FROM expression)?
            | RAISE
@@ -46,11 +44,11 @@ global_stmt: GLOBAL (NAME COMMA)* NAME;
 
 comment : COMMENT;
 
-del_stmt: 'del' del_targets;
+del_stmt: DEL del_targets;
 
 yield_stmt: yield_expr;
 
-assert_stmt: 'assert' expression (COMMA expression)?;
+assert_stmt: ASSERT expression (COMMA expression)?;
 
 import_stmt : import_name
             | import_from
@@ -58,11 +56,11 @@ import_stmt : import_name
 
 import_name: IMPORT dotted_as_names;
 
-import_from : FROM ('.' | '...')* dotted_name IMPORT import_from_targets
-            | FROM ('.' | '...')+ IMPORT import_from_targets
+import_from : FROM (DOT | ELLIPSIS)* dotted_name IMPORT import_from_targets
+            | FROM (DOT | ELLIPSIS)+ IMPORT import_from_targets
             ;
 
-import_from_targets : '(' import_from_as_names (COMMA)? ')'
+import_from_targets : LBAR import_from_as_names (COMMA)? RBAR
                     | import_from_as_names
                     | '*'
                     ;
@@ -71,11 +69,9 @@ import_from_as_names: import_from_as_name (COMMA import_from_as_name)*;
 
 import_from_as_name: NAME (AS NAME)?;
 
-dotted_as_names: dotted_as_name (COMMA dotted_as_name)*;
+dotted_as_names: (dotted_name (AS NAME)?) (COMMA (dotted_name (AS NAME)?))*;
 
-dotted_as_name: dotted_name (AS NAME)?;
-
-dotted_name : dotted_name '.' NAME
+dotted_name : dotted_name DOT NAME
             | NAME
             ;
 
@@ -84,13 +80,13 @@ block : NEWLINES indent statement+ dedent
 
 indent : INDENT (NEWLINES)?;
 
-dedent : DEDENT (NEWLINES)?;
+dedent :  DEDENT (NEWLINES)?;
 
-decorators: ('@' named_expression NEWLINES)+;
+decorators: (AT named_expression NEWLINES)+;
 
-class_def : (decorators)? CLASS NAME ('(' (arguments)? ')')? COLON block;
+class_def : (decorators)? CLASS NAME (LBAR (arguments)? RBAR)? COLON block;
 
-function_def : (decorators)? (ASYNC)? DEF NAME '(' (parameters)? ')' ('->' expression)? COLON block;
+function_def : (decorators)? (ASYNC)? DEF NAME LBAR (parameters)? RBAR ('->' expression)? COLON block;
 
 parameters : (param_no_default)+ (param_with_default)* (star_etc)?
            | (param_with_default)+ (star_etc)?
@@ -127,151 +123,80 @@ else_block: ELSE COLON block;
 
 while_stmt: WHILE named_expression COLON block (else_block)?;
 
-for_stmt : FOR star_targets IN star_expressions COLON block (else_block)?
-         | ASYNC FOR star_targets IN star_expressions COLON block (else_block)?;
+for_stmt : FOR star_targets IN star_expression COLON block (else_block)?
+         | ASYNC FOR star_targets IN star_expression COLON block (else_block)?;
 
-with_stmt : WITH '(' with_item (COMMA with_item)* COMMA? ')' COLON block
+with_stmt : WITH LBAR with_item (COMMA with_item)* COMMA? RBAR COLON block
           | WITH with_item (COMMA with_item)* COLON block
-          | ASYNC WITH '(' with_item (COMMA with_item)* COMMA? ')' COLON block
+          | ASYNC WITH LBAR with_item (COMMA with_item)* COMMA? RBAR COLON block
           | ASYNC WITH with_item (COMMA with_item)+ COLON block;
 
 with_item : expression AS star_target
           | expression;
 
-try_stmt : 'try' COLON block (finally_block)
-         | 'try' COLON block (except_block)+ (else_block)? (finally_block)?
-         | 'try' COLON block (except_star_block)+ (else_block)? (finally_block)?;
+try_stmt : TRY COLON block (finally_block)
+         | TRY COLON block (except_block)+ (else_block)? (finally_block)?
+         | TRY COLON block (except_star_block)+ (else_block)? (finally_block)?;
 
-except_block : EXCEPT expression (AS NAME)? COLON block
+except_block : EXCEPT expression except_var COLON block
              | EXCEPT COLON block;
 
-except_star_block: EXCEPT '*' expression (AS NAME)? COLON block;
+except_star_block: EXCEPT '*' expression except_var COLON block;
+
+except_var: (AS NAME)?;
 
 finally_block: FINALLY COLON block;
 
-yield_expr : 'yield' FROM expression
-           | 'yield' star_expressions?
+yield_expr : YIELD FROM expression
+           | YIELD star_expression?
            ;
 
-star_expressions : star_expression (COMMA star_expression)*
-                 | star_expression COMMA
-                 | star_expression
+star_expression : ('*' comparison | expression) (COMMA ('*' comparison | expression))*
                  ;
 
-star_expression : '*' bitwise_or
-                | expression
-                ;
-
-star_named_expressions: star_named_expression (COMMA star_named_expression)*;
-
-star_named_expression : '*' bitwise_or
-                      | named_expression
-                      ;
+star_named_expression: ('*' comparison | named_expression) (COMMA ('*' comparison | named_expression))*;
 
 assignment_expression : NAME EXPLAIN expression ;
 
 named_expression : assignment_expression
                  | expression
-              ;
+                 ;
 
 
-expressions : expression (COMMA expression)*
-            | expression COMMA
-            | expression
-            ;
-
-expression : disjunction IF disjunction ELSE expression
-           | atom
-           | primary
-           | await_primary
-           | power
-           | factor
-           | term
-           | sum
-           | shift_expr
-           | bitwise_and
-           | bitwise_xor
-           | bitwise_or
-           | comparison
-           | inversion
-           | conjunction
-           | disjunction
+expression : (NOT? comparison ((AND | OR) NOT? comparison)*) (IF (NOT? comparison ((AND | OR) NOT? comparison)*) ELSE expression)? (COMMA (NOT? comparison ((AND | OR) NOT? comparison)*) (IF (NOT? comparison ((AND | OR) NOT? comparison)*) ELSE expression)?)*
            | lambdef
            ;
 
-disjunction : conjunction ('or' conjunction)* ;
-
-conjunction : inversion ('and' inversion)* ;
-
-inversion : NOT inversion | comparison ;
-
-comparison : bitwise_or compare_op_bitwise_or_pair* ;
-
-compare_op_bitwise_or_pair : COMPARISON_OPERATOR bitwise_or ;
-
-bitwise_or : bitwise_or '|' bitwise_xor
-           | bitwise_xor
-           ;
-
-bitwise_xor : bitwise_xor '^' bitwise_and
-            | bitwise_and
-            ;
-
-bitwise_and : bitwise_and '&' shift_expr
-            | shift_expr
-            ;
-
-shift_expr : shift_expr ('<<' | '>>') sum
-           | sum
-           ;
-
-sum : sum ('+' | '-') term
-    | term
-    ;
-
-term : term ('*' | '/' | '//' | '%' | '@') factor
-     | factor
-     ;
+comparison : factor ((COMPARISON_OPERATOR | '|' | '^' | '&' | '<<' | '>>' | '+' | '-' | '*' | '/' | '//' | '%' | AT) factor)* ;
 
 factor : ('+' | '-' | '~') factor
-       | power
+       | AWAIT? atom (primary)* ('**' factor)?
        ;
 
-power : await_primary '**' factor
-      | await_primary
-      ;
+primary : DOT NAME 
+        | genexp 
+        | LBAR arguments? RBAR 
+        | LSQUARE slices RSQUARE ;
 
-await_primary : AWAIT primary
-              | primary
-              ;
-
-primary : primary '.' NAME
-        | primary genexp
-        | primary '(' arguments? ')'
-        | primary '[' slices ']'
-        | atom
-        ;
-
-slices : slice (COMMA slice)* COMMA?
-       | slice;
+slices : slice (COMMA slice)* COMMA?;
 
 slice : (expression)? COLON (expression)? (COLON (expression)?)?
       | named_expression;
 
 atom : NAME
-     | 'True'
-     | 'False'
-     | 'None'
+     | TRUE
+     | FALSE
+     | NONE
      | strings
      | NUMBER
      | (tuple | group | genexp)
      | (list | listcomp)
      | (dict | set | dictcomp | setcomp)
-     | '...';
+     | ELLIPSIS;
 
-group: '(' (yield_expr | named_expression) ')';
+group: LBAR (yield_expr | named_expression) RBAR;
 
-lambdef: 'lambda' (lambda_params)? COLON expression;
+lambdef: LAMBDA (lambda_params)? COLON expression;
 
 lambda_params: lambda_parameters;
 
@@ -297,11 +222,11 @@ lambda_param_maybe_default  : lambda_param (default)? COMMA
 lambda_param: NAME;
 
 
-fstring_replacement_field : '{' (yield_expr | star_expressions) '}';
+fstring_replacement_field : LBRACE (yield_expr | star_expression) RBRACE;
 
-fstring_content_single : (~('{' | '}' | '\r' | '\n' | '\f' | '\b' | '\''))+;
+fstring_content_single : (~(LBRACE | RBRACE | '\r' | NEWLINES | '\f' | '\b' | '\''))+;
 
-fstring_content_double : (~('{' | '}' | '\r' | '\n' | '\f' | '\b' | '"'))+;
+fstring_content_double : (~(LBRACE | RBRACE | '\r' | NEWLINES | '\f' | '\b' | '"'))+;
 
 fstring : (FSTRING_START_SINGLE (fstring_content_single | fstring_replacement_field)* FSTRING_END_SINGLE)
         | (FSTRING_START_DOUBLE (fstring_content_double | fstring_replacement_field)* FSTRING_END_DOUBLE);
@@ -309,32 +234,32 @@ fstring : (FSTRING_START_SINGLE (fstring_content_single | fstring_replacement_fi
 string: STRING;
 strings: (fstring | string)+;
 
-dict : '{' (double_starred_kvpairs)? '}';
+dict : LBRACE (double_starred_kvpairs)? RBRACE;
 
-list: '[' (star_named_expressions)? ']';
+list: LSQUARE (star_named_expression)? RSQUARE;
 
-tuple: '(' (star_named_expression (COMMA star_named_expressions)?)? ')';
+tuple: LBAR (star_named_expression (COMMA star_named_expression)?)? RBAR;
 
 
-set: '{' star_named_expressions '}';
+set: LBRACE star_named_expression RBRACE;
 
 
 double_starred_kvpairs: double_starred_kvpair (COMMA double_starred_kvpair)* (COMMA)?;
 
-double_starred_kvpair : '**' bitwise_or
+double_starred_kvpair : '**' comparison
                       | kvpair;
 
 kvpair: expression COLON expression;
 
 for_if_clauses: for_if_clause+;
 
-for_if_clause : ASYNC FOR star_targets IN disjunction (IF disjunction)*
-              | FOR star_targets IN disjunction (IF disjunction)*;
+for_if_clause : ASYNC FOR star_targets IN (((NOT? comparison) (AND (NOT? comparison))*) (OR ((NOT? comparison) (AND (NOT? comparison))*))*) (IF (((NOT? comparison) (AND (NOT? comparison))*) (OR ((NOT? comparison) (AND (NOT? comparison))*))*))*
+              | FOR star_targets IN (((NOT? comparison) (AND (NOT? comparison))*) (OR ((NOT? comparison) (AND (NOT? comparison))*))*) (IF (((NOT? comparison) (AND (NOT? comparison))*) (OR ((NOT? comparison) (AND (NOT? comparison))*))*))*;
 
-listcomp: '[' named_expression for_if_clauses ']';
-setcomp: '{' named_expression for_if_clauses '}';
-genexp: '(' (assignment_expression | expression) for_if_clauses ')';
-dictcomp: '{' kvpair for_if_clauses '}';
+listcomp: LSQUARE named_expression for_if_clauses RSQUARE;
+setcomp: LBRACE named_expression for_if_clauses RBRACE;
+genexp: LBAR (assignment_expression | expression) for_if_clauses RBAR;
+dictcomp: LBRACE kvpair for_if_clauses RBRACE;
 
 arguments :  (args (COMMA args)* (COMMA kwargs)? | kwargs) (COMMA)?;
 
@@ -366,54 +291,54 @@ star_target : '*' (star_target)
             | target_with_star_atom
             ;
 
-target_with_star_atom : t_primary '.' NAME
-                      | t_primary '[' slices ']'
+target_with_star_atom : t_primary DOT NAME
+                      | t_primary LSQUARE slices RSQUARE
                       | star_atom
                       ;
 
 star_atom : NAME
-          | '(' target_with_star_atom ')'
-          | '(' star_targets_tuple_seq? ')'
-          | '[' star_targets_list_seq? ']'
+          | LBAR target_with_star_atom RBAR
+          | LBAR star_targets_tuple_seq? RBAR
+          | LSQUARE star_targets_list_seq? RSQUARE
           ;
 
 single_target : single_subscript_attribute_target
               | NAME
-              | '(' single_target ')'
+              | LBAR single_target RBAR
               ;
 
-single_subscript_attribute_target : t_primary '.' NAME
-                                  | t_primary '[' slices ']'
+single_subscript_attribute_target : t_primary DOT NAME
+                                  | t_primary LSQUARE slices RSQUARE
                                   ;
 
-t_primary : t_primary '.' NAME
-          | t_primary '[' slices ']'
+t_primary : t_primary DOT NAME
+          | t_primary LSQUARE slices RSQUARE
           | t_primary genexp
-          | t_primary '(' arguments? ')'
+          | t_primary LBAR arguments? RBAR
           | atom
           ;
 
 del_targets: del_target (COMMA del_target)* COMMA?;
 
-del_target : t_primary '.' NAME
-           | t_primary '[' slices ']'
+del_target : t_primary DOT NAME
+           | t_primary LSQUARE slices RSQUARE
            | del_t_atom
            ;
 
 del_t_atom : NAME
-    | '(' del_target ')'
-    | '(' del_targets? ')'
-    | '[' del_targets? ']'
+    | LBAR del_target RBAR
+    | LBAR del_targets? RBAR
+    | LSQUARE del_targets? RSQUARE
     ;
 
 // Lexer rules
-ENTER : '\r' ;
-LINEBREAK : '\n' ;
-NEWLINES : (ENTER? LINEBREAK)+ ;
+NEWLINES : ('\r'? '\n')+ ;
 INDENT : '\b' ' ' NUMBER ;
 DEDENT : '\f' ' ' NUMBER ;
-FSTRING_START_SINGLE : 'f\'' | 'F\'';
-FSTRING_START_DOUBLE : 'f"' | 'F"';
+FSTRING_START_SINGLE : (SF | BF) '\'';
+FSTRING_START_DOUBLE : (SF | BF) '"';
+SF : 'f';
+BF : 'F';
 FSTRING_END_SINGLE : '\'';
 FSTRING_END_DOUBLE : '"';
 STRING : '"' ~["\r\n]* '"' | '\'' ~['\r\n]* '\'' ;
@@ -439,6 +364,8 @@ FOR : 'for' ;
 IN : 'in' ;
 NOT : 'not' ;
 IS : 'is' ;
+AND : 'and' ;
+OR : 'or' ;
 WHILE : 'while' ;
 DEF : 'def' ;
 RETURN : 'return' ;
@@ -487,27 +414,10 @@ LSQUARE : '[' ;
 RSQUARE : ']' ;
 LBRACE : '{' ;
 RBRACE : '}' ;
-OPERATOR : '*'
-         | '->'
-         | '**'
-         | 'or'
-         | 'and'
-         | '|'
-         | '^'
-         | '&'
-         | '<<'
-         | '>>'
-         | '+'
-         | '-'
-         | '/'
-         | '//'
-         | '%'
-         | '~'
-         ;
          
 EXPLAIN : ':=';
 
 NAME : [a-zA-Z_] [a-zA-Z_0-9]* ;
-NUMBER : [0-9]+ ('.' [0-9]*)? ;
+NUMBER : [0-9]+ (DOT [0-9]*)? ;
 COMMENT : '#' ~[\r\n]*;
-WS: [ \t]+ -> skip ;
+WS: [ \t]+ -> channel(HIDDEN);

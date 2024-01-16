@@ -4,3 +4,4 @@ parserpy/
 parservpy/
 parserclasses/
 *.zip
+.vscode/
