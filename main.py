@@ -163,7 +163,7 @@ class PythonEditor(QtWidgets.QMainWindow, Ui_PythonEditor):
             self.ShowDef.setHtml(func_def)
 
         if word.strip() != "":
-            var_list = self.visitor.search_name(word)
+            var_list = self.visitor.search_name(word, flag)
             self.ShowVar.reset()
             self.string_list.setStringList(var_list)
         else:

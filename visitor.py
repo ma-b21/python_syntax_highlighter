@@ -123,38 +123,67 @@ class Visitor(PythonVisitor):
         super().__init__()
 
     def search_funcs(self, method_name, class_name=None):
-        try:
-            if not class_name:
-                for key in self.symbol_table["function"].keys():
+        if not class_name:
+            for key in self.symbol_table["function"].keys():
+                try:
                     if key == method_name:
                         results = self.visit(
                             self.symbol_table["function"][key]["ctx"])
                         return f"<pre><code style='line-height: 1.2;'>{results}</code></pre>"
-            else:
-                for classes in self.symbol_table["class"].keys():
+                except Exception:
+                    pass
+            for key in self.symbol_table["class"].keys():
+                try:
+                    if key == method_name:
+                        results = self.visit(
+                            self.symbol_table["class"][key]["ctx"])
+                        return f"<pre><code style='line-height: 1.2;'>{results}</code></pre>"
+                except Exception:
+                    pass
+
+        else:
+            for classes in self.symbol_table["class"].keys():
+                try:
                     for key in self.symbol_table["class"][classes]["methods"].keys():
                         if key == method_name:
                             results = self.visit(
                                 self.symbol_table["class"][classes]["methods"][key]["ctx"])
                             return f"<pre><code style='line-height: 1.2;'>{results}</code></pre>"
-        except Exception:
-            pass
+                except Exception:
+                    pass
 
         return ""
 
-    def search_name(self, name):
+    def search_name(self, name, flag):
         name_list = []
         for key in self.symbol_table["var"].keys():
             if key.startswith(name):
-                name_list.append('\t'.join([key, "var"]))
+                res = '\t'.join([key, "var"])
+                if res not in name_list:
+                    name_list.append(res)
 
         for key in self.symbol_table["class"].keys():
             if key.startswith(name):
-                name_list.append('\t'.join([key, "class"]))
+                res = '\t'.join([key, "class"])
+                if res not in name_list:
+                    name_list.append(res)
+        if not flag:
+            for key in self.symbol_table["function"].keys():
+                if key.startswith(name):
+                    res = '\t'.join([key, "function"])
+                    if res not in name_list:
+                        name_list.append(res)
+        else:
+            for classes in self.symbol_table["class"].keys():
+                try:
+                    for key in self.symbol_table["class"][classes]["methods"].keys():
+                        if key.startswith(name):
+                            res = '\t'.join([key, "function"])
+                            if res not in name_list:
+                                name_list.append(res)
+                except Exception:
+                    pass
 
-        for key in self.symbol_table["function"].keys():
-            if key.startswith(name):
-                name_list.append('\t'.join([key, "function"]))
         return name_list
 
     def generate_html(self, html_code):
@@ -274,6 +303,7 @@ class Visitor(PythonVisitor):
                         if isinstance(parent, PythonParser.Class_defContext) and\
                            text not in self.symbol_table["class"]:
                             self.symbol_table["class"][text] = {
+                                "ctx": parent,
                                 "methods": {},
                             }
                         return f'<span style="color: #65c8af;">{node.symbol.text}</span>'
@@ -285,7 +315,7 @@ class Visitor(PythonVisitor):
                             if isinstance(parent, PythonParser.Class_defContext):
                                 if text not in self.symbol_table["class"][parent.NAME().symbol.text.strip()]["methods"]:
                                     self.symbol_table["class"][parent.NAME().symbol.text.strip()]["methods"][text] = {
-                                        "ctx": parent,
+                                        "ctx": node.parentCtx,
                                         "name": text,
                                         "params": [],
                                     }
