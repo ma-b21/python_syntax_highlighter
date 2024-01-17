@@ -155,7 +155,6 @@ class Visitor(PythonVisitor):
         for key in self.symbol_table["function"].keys():
             if key.startswith(name):
                 name_list.append('\t'.join([key, "function"]))
-
         return name_list
 
     def generate_html(self, html_code):
@@ -179,8 +178,8 @@ class Visitor(PythonVisitor):
         results = self.visit(tree)
         # 将所有\r\n换为\n
         results = re.sub(r'\r\n', '\n', results)
-        with open('result.html', 'w', encoding='utf-8') as file:
-            file.write(results)
+        # with open('result.html', 'w', encoding='utf-8') as file:
+        #     file.write(results)
         # print(json.dumps(visitor.symbol_table, indent=4))
         # print(json.dumps(self.symbol_table['var'], indent=4))
         return (True, results)

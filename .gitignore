@@ -5,3 +5,4 @@ parservpy/
 parserclasses/
 *.zip
 .vscode/
+build/
