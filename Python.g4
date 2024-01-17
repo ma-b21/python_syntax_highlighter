@@ -167,7 +167,7 @@ expression : (NOT? comparison ((AND | OR) NOT? comparison)*) (IF (NOT? compariso
            | lambdef
            ;
 
-comparison : factor ((COMPARISON_OPERATOR | '|' | '^' | '&' | '<<' | '>>' | '+' | '-' | '*' | '/' | '//' | '%' | AT) factor)* ;
+comparison : factor ((COMPARISON_OPERATOR | (NOT IN) | IN | (IS NOT) | IS | '|' | '^' | '&' | '<<' | '>>' | '+' | '-' | '*' | '/' | '//' | '%' | AT) factor)* ;
 
 factor : ('+' | '-' | '~') factor
        | AWAIT? atom (primary)* ('**' factor)?
@@ -398,10 +398,6 @@ COMPARISON_OPERATOR : '=='
                     | '<'
                     | '>='
                     | '>'
-                    | NOT IN
-                    | IN
-                    | IS NOT
-                    | IS
                     ;
 COMMA : ',' ;
 COLON : ':' ;

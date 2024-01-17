@@ -46,6 +46,6 @@ def preprocess_python_code(file_path:str):
 
 def pre_process(html_code):
     processed_code = preprocess_python_code(html_code)
-    return processed_code
     # with open('processed_file.txt', 'w', encoding='utf-8') as file:
     #     file.write(processed_code)
+    return processed_code

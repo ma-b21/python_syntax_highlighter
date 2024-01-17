@@ -1,11 +1,13 @@
 from PythonEditor import Ui_PythonEditor
 from PyQt5 import QtWidgets
-from qfluentwidgets import FluentIcon, Action, TextEdit
+from qfluentwidgets import FluentIcon, Action
+from PyQt5.QtGui import QIcon
 from PyQt5 import QtCore
 import os
 from visitor import Visitor
 from PyQt5.QtGui import QTextCursor
 from PyQt5.QtCore import QStringListModel
+import subprocess
 
 
 class PythonEditor(QtWidgets.QMainWindow, Ui_PythonEditor):
@@ -16,15 +18,26 @@ class PythonEditor(QtWidgets.QMainWindow, Ui_PythonEditor):
     maxvalue = None
     time_unchanged = 0
     string_list = None
+    filepath = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
         self.CommandBar.setIconSize(QtCore.QSize(22, 22))
 
-        self.CommandBar.addAction(Action(FluentIcon.DOCUMENT, "Open"))
-        self.CommandBar.addAction(Action(FluentIcon.SAVE_AS, "Save"))
-        self.CommandBar.addAction(Action(FluentIcon.PLAY, "Run"))
+        self.setWindowIcon(QIcon("./icons/python.png"))
+
+        self.openAction = Action(FluentIcon.DOCUMENT, "Open")
+        self.CommandBar.addAction(self.openAction)
+        self.openAction.triggered.connect(self.openFile)
+
+        self.saveAction = Action(FluentIcon.SAVE, "Save")
+        self.CommandBar.addAction(self.saveAction)
+        self.saveAction.triggered.connect(self.saveFile)
+
+        self.runAction = Action(FluentIcon.PLAY, "Run")
+        self.CommandBar.addAction(self.runAction)
+        self.runAction.triggered.connect(self.run)
 
         self.visitor = Visitor()
 
@@ -37,7 +50,39 @@ class PythonEditor(QtWidgets.QMainWindow, Ui_PythonEditor):
         self.string_list = QStringListModel()
         self.ShowVar.setModel(self.string_list)
 
-        # self.Editor.textChanged.connect(self.highlight)
+    def run(self):
+        self.saveFile()
+        process = subprocess.Popen(
+            ["python", self.filepath],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding='utf-8'
+        )
+
+        result, _ = process.communicate()
+        self.ShowDef.setHtml(
+            f"<strong><pre><code>{result}</code></pre></strong>"
+        )
+
+    def openFile(self):
+        self.filepath, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open File", "", "Python Files (*.py)")
+        if self.filepath:
+            self.setWindowTitle(self.windowTitle() + " - " + self.filepath)
+            with open(self.filepath, "r", encoding="utf-8") as f:
+                self.Editor.setText(f.read())
+
+    def saveFile(self):
+        if self.filepath:
+            with open(self.filepath, "w", encoding="utf-8") as f:
+                f.write(self.Editor.toPlainText())
+        else:
+            self.filepath, _ = QtWidgets.QFileDialog.getSaveFileName(
+                self, "Save File", "", "Python Files (*.py)")
+            if self.filepath:
+                self.setWindowTitle(self.windowTitle() + " - " + self.filepath)
+                with open(self.filepath, "w", encoding="utf-8") as f:
+                    f.write(self.Editor.toPlainText())
 
     def readWordBeforeCursor(self):
         cursor = self.Editor.textCursor()
@@ -54,12 +99,12 @@ class PythonEditor(QtWidgets.QMainWindow, Ui_PythonEditor):
             # 读取选中的字符
             char = cursor.selectedText()
 
-            # 如果遇到空白字符或者文档开始，则停止
-            if char.isspace() or char == "\n" or char == "\r" or char == "\t":
-                return (word, False)
-
             if char == ".":
                 return (word, True)
+
+            # 如果字符不是字母或数字，则停止
+            if (not char.isalnum()) and (char != "_"):
+                return (word, False)
 
             # 将字符添加到单词的开头
             word = char + word
